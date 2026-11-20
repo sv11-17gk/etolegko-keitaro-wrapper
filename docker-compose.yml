@@ -1,0 +1,29 @@
+services:
+  # Фейковый Keitaro Admin API с фикстурой их тестовой кампании —
+  # чтобы проверить обёртку без доступа к реальному трекеру.
+  mock-keitaro:
+    build: .
+    command: uvicorn mock_keitaro.main:app --host 0.0.0.0 --port 8081
+    ports:
+      - "8081:8081"
+
+  wrapper:
+    build: .
+    environment:
+      KT_BASE_URL: http://mock-keitaro:8081
+      KT_API_KEY: mock-key
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mock-keitaro
+    volumes:
+      - wrapper-data:/data
+
+  # Реальный Keitaro: раскомментируйте, заполнив .env
+  # wrapper-real:
+  #   build: .
+  #   env_file: .env
+  #   ports: ["8000:8000"]
+
+volumes:
+  wrapper-data:

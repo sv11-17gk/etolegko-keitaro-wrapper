@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keitaro Wrapper — редактор кампаний</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Keitaro <b>Wrapper</b></div>
+  <div class="toolbar">
+    <select id="campaignSelect" class="select" aria-label="Кампания"></select>
+    <button id="fetchBtn" class="btn">FETCH STREAMS FROM KT</button>
+    <a id="viewInKt" class="btn ghost" target="_blank" rel="noopener">VIEW IN KT</a>
+    <a class="btn primary" href="/create.html">NEW CAMPAIGN</a>
+  </div>
+</header>
+
+<main id="streams" class="streams">
+  <p class="empty">Выберите кампанию — потоки подтянутся из Keitaro.</p>
+</main>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>All offers</h2>
+      <button id="modalClose" class="btn ghost small">CLOSE</button>
+    </div>
+    <input id="modalSearch" class="input" placeholder="Поиск по ID или названию...">
+    <div id="modalList" class="modal-list"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

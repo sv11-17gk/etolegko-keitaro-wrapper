@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keitaro Wrapper — новая кампания</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Keitaro <b>Wrapper</b></div>
+  <div class="toolbar">
+    <a class="btn ghost" href="/index.html">&larr; РЕДАКТОР</a>
+  </div>
+</header>
+
+<main class="page">
+  <section class="card form-card">
+    <h1>New campaign</h1>
+    <p class="muted">Создаст кампанию в Keitaro: Flow 1 ловит указанные гео и редиректит на Google,
+       Flow 2 отдаёт трафик выбранному офферу. Домен, группа и источник подставятся автоматически.</p>
+
+    <form id="createForm">
+      <label class="field">
+        <span>Name</span>
+        <input class="input" name="name" required placeholder="test_karin_campaign1">
+      </label>
+      <label class="field">
+        <span>Geo</span>
+        <input class="input" name="geos" required placeholder="MX, AU, RO">
+        <small class="muted">Гео-коды стран через запятую (ISO 3166-1 alpha-2)</small>
+      </label>
+      <label class="field">
+        <span>Offer</span>
+        <div class="offer-box">
+          <input class="input" id="offerInput" required
+                 placeholder="поиск по офферам: ID или название" autocomplete="off">
+          <div id="offerSuggest" class="suggest hidden"></div>
+        </div>
+        <input type="hidden" name="offer_id" id="offerIdInput" required>
+      </label>
+
+      <details class="advanced">
+        <summary>Домен, группа, источник — необязательно</summary>
+        <label class="field"><span>Домен</span>
+          <select id="domainSelect" class="select"></select></label>
+        <label class="field"><span>Группа</span>
+          <select id="groupSelect" class="select"></select></label>
+        <label class="field"><span>Источник</span>
+          <select id="sourceSelect" class="select"></select></label>
+      </details>
+
+      <button type="submit" class="btn primary wide">CREATE</button>
+    </form>
+
+    <div id="result" class="result hidden"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/js/create.js"></script>
+</body>
+</html>
