@@ -9,6 +9,7 @@
 """
 import random
 import string
+import time
 
 from fastapi import FastAPI, Header, HTTPException, Request
 
@@ -77,7 +78,9 @@ def reset_state() -> None:
     DOMAINS = [{"id": 1, "name": "in.posdk.xyz", "state": "active"}]
     GROUPS = [{"id": 1, "name": "FORTESTS", "type": "campaigns"}]
     SOURCES = [{"id": 1, "name": "FORTESTS", "state": "active"}]
-    _next_id = 94000
+    # Локальная БД обёртки переживает перезапуск mock. Не выдаём заново
+    # старые идентификаторы: иначе новая кампания наследует чужой архив.
+    _next_id = max(globals().get("_next_id", 94000), time.time_ns() // 1_000_000)
 
 
 reset_state()

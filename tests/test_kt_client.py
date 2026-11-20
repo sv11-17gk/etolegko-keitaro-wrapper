@@ -47,4 +47,4 @@ def test_default_admin_link_uses_keitaro_hash_route(monkeypatch, db, kt):
     assert list_campaigns(db, kt)[0]["admin_url"] == (
         "https://keitaro.test/admin/#!/campaign/93212/main")
     monkeypatch.setattr(settings, "demo_mode", True)
-    assert list_campaigns(db, kt)[0]["admin_url"] is None
+    assert list_campaigns(db, kt)[0]["admin_url"] == "/demo-keitaro.html?campaign=93212"

@@ -41,6 +41,16 @@ app.include_router(router)
 install_error_handlers(app)
 
 
+@app.middleware("http")
+async def fresh_workspace(request, call_next):
+    response = await call_next(request)
+    # Рабочая копия и соседнее окно трекера должны показывать свежие данные.
+    response.headers["Cache-Control"] = (
+        "no-store" if request.url.path.startswith("/api/") else "no-cache"
+    )
+    return response
+
+
 @app.get("/", include_in_schema=False)
 def editor():
     """Сразу открывает рабочий редактор кампаний."""

@@ -22,6 +22,7 @@ function toast(msg, isError) {
 
 async function api(path, opts = {}) {
   const resp = await fetch(path, {
+    cache: "no-store",
     headers: opts.body ? { "Content-Type": "application/json" } : undefined,
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -45,15 +46,14 @@ function attachOfferAutocomplete() {
   const render = (items) => {
     if (!items.length) { box.classList.add("hidden"); return; }
     box.innerHTML = items.map(o =>
-      `<div class="suggest-item" data-id="${o.offer_id}">${o.offer_id}
-         <span class="muted">${esc(o.name)}</span></div>`).join("");
+      `<div class="suggest-item" data-id="${o.offer_id}">${esc((o.name === String(o.offer_id) || String(o.name || "").startsWith(o.offer_id + " ") || String(o.name || "").startsWith("[" + o.offer_id + "]")) ? o.name : `${o.offer_id} ${o.name}`)}</div>`).join("");
     box.classList.remove("hidden");
     [...box.children].forEach(item => {
       item.addEventListener("mousedown", (ev) => {
         ev.preventDefault();
         const id = Number(item.dataset.id);
         const o = items.find(x => x.offer_id === id);
-        input.value = `${id} ${o.name}`;
+        input.value = (o.name === String(id) || String(o.name || "").startsWith(id + " ") || String(o.name || "").startsWith("[" + id + "]")) ? o.name : `${id} ${o.name}`;
         $("#offerIdInput").value = id;
         pickedOffer = o;
         box.classList.add("hidden");
@@ -88,6 +88,7 @@ function fillSelect(select, items, emptyLabel) {
 
 async function loadReference() {
   const ref = await api("/api/reference");
+  $("#demoNote").classList.toggle("hidden", !ref.demo_mode);
   fillSelect($("#domainSelect"), ref.domains, "авто — первый активный");
   fillSelect($("#groupSelect"), ref.groups, "авто — первая группа");
   fillSelect($("#sourceSelect"), ref.sources, "авто — первый источник");

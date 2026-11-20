@@ -4,15 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Keitaro Wrapper — новая кампания</title>
-<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/style.css?v=20261121-parity">
 </head>
 <body>
 <header class="topbar">
   <a class="brand" href="/">Keitaro <b>Wrapper</b></a>
   <nav class="topnav" aria-label="Навигация">
-    <a href="/">Campaigns</a>
+    <a href="/campaigns.html">Campaigns</a>
     <a class="active" href="/create.html" aria-current="page">New campaign</a>
-    <a href="https://github.com/sv11-17gk/etolegko-keitaro-wrapper" target="_blank" rel="noopener">GitHub / README ↗</a>
   </nav>
 </header>
 
@@ -22,6 +21,7 @@
     <p class="muted">Flow 1: указанные страны → Google. Flow 2: остальные посетители → оффер.
        Домен, группа и источник выбираются автоматически; их можно изменить ниже.</p>
 
+    <p id="demoNote" class="demo-note hidden">Демо на тестовых данных. Кампания будет создана в тестовом Keitaro.</p>
     <form id="createForm">
       <label class="field">
         <span>Name</span>
@@ -60,6 +60,6 @@
 </main>
 
 <div id="toast" class="toast hidden" role="status"></div>
-<script src="/js/create.js"></script>
+<script src="/js/create.js?v=20261121-parity"></script>
 </body>
 </html>

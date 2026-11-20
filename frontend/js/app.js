@@ -23,6 +23,7 @@ function toast(msg, isError) {
 
 async function api(path, opts = {}) {
   const resp = await fetch(path, {
+    cache: "no-store",
     headers: opts.body ? { "Content-Type": "application/json" } : undefined,
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
@@ -39,6 +40,7 @@ async function api(path, opts = {}) {
 /* ---------- состояние ---------- */
 let campaigns = [];
 let currentCampaignId = null;
+let streamDtos = [];
 const streamCards = new Map(); // kt_stream_id -> <section>
 
 /* ---------- кампании ---------- */
@@ -67,12 +69,16 @@ function updateViewInKt() {
   $("#viewInKt").href = c && c.admin_url ? c.admin_url : "#";
   $("#viewInKt").classList.toggle("hidden", !c || !c.admin_url);
   $("#campaignName").textContent = c ? c.name : "Нет кампаний";
-  $("#demoNote").classList.toggle("hidden", !campaigns.length || campaigns.some(x => x.admin_url));
+  $("#campaignName").href = c && c.admin_url ? c.admin_url : "/campaigns.html";
+  $("#campaignName").target = "_blank";
+  $("#campaignName").rel = "noopener";
+  $("#demoNote").classList.toggle("hidden", !campaigns.some(x => x.demo_mode));
 }
 
 async function loadStreams() {
   const box = $("#streams");
   streamCards.clear();
+  streamDtos = [];
   box.innerHTML = `<p class="empty">Загружаем потоки…</p>`;
   if (!currentCampaignId) {
     box.innerHTML = `<p class="empty">Кампаний в Keitaro пока нет — создайте первую.</p>`;
@@ -80,7 +86,8 @@ async function loadStreams() {
   }
   const streams = await api(`/api/campaigns/${currentCampaignId}/streams`);
   box.innerHTML = "";
-  for (const s of streams) box.appendChild(buildStreamCard(s));
+  streamDtos = [...streams].sort((a, b) => Number(b.is_offer_stream) - Number(a.is_offer_stream) || a.position - b.position);
+  for (const s of streamDtos) box.appendChild(buildStreamCard(s));
   if (!streams.length) box.innerHTML = `<p class="empty">В этой кампании пока нет потоков.</p>`;
 }
 
@@ -90,6 +97,13 @@ async function refetchCampaignsAndStreams() {
 }
 
 /* ---------- карточка потока ---------- */
+function offerName(o) {
+  const name = String(o.name || "");
+  const id = String(o.offer_id);
+  return name === id || name.startsWith(id + " ") || name.startsWith("[" + id + "]")
+    ? esc(name) : `<span class="offer-id">${id}</span> ${esc(name)}`;
+}
+
 function offerRowHtml(o) {
   const removed = o.state === "removed";
   const actionBtn = removed
@@ -100,9 +114,11 @@ function offerRowHtml(o) {
     : `<button class="btn small pin-btn${o.pinned ? " pinned" : ""}" data-act="pin" data-id="${o.binding_id}"
          title="${o.pinned ? "Открепить вес" : "Закрепить вес"}" aria-pressed="${o.pinned}" data-pinned="${o.pinned ? "0" : "1"}">${o.pinned ? "UNPIN" : "PIN"}</button>`;
   return `<tr class="${removed ? "removed" : ""}" data-binding="${o.binding_id}">
-    <td class="name-cell"><span class="offer-id">${o.offer_id}</span> ${esc(o.name)}
-      ${removed ? `<span class="removed-tag">(removed)</span>` : ""}</td>
+    <td class="name-cell">${offerName(o)}
+      ${removed ? `<span class="removed-tag">(removed)</span>` : ""}
+      <a class="offer-preview" href="${esc(o.preview_url || `/api/offers/${o.offer_id}/preview`)}" target="_blank" rel="noopener">(preview)</a></td>
     <td class="share"><div class="share-control"><span>${o.share}%</span>${pinBtn}</div></td>
+    <td class="stats-cell"></td><td class="trends-cell"></td>
     <td class="offer-actions">${actionBtn}</td>
   </tr>`;
 }
@@ -111,13 +127,16 @@ function streamBodyHtml(s) {
   if (!s.is_offer_stream) {
     return "";
   }
-  const rows = s.offers.map(offerRowHtml).join("");
+  const rows = [...s.offers]
+    .sort((a, b) => Number(a.state === "removed") - Number(b.state === "removed") || b.share - a.share)
+    .map(offerRowHtml).join("");
   return `
     ${s.warning ? `<div class="stream-warning">${esc(s.warning)}</div>` : ""}
-    <div class="table-wrap"><table class="offers">
-      <thead><tr><th scope="col">Offer</th><th scope="col">Share</th><th scope="col" class="offer-actions">Actions</th></tr></thead>
+    <table class="offers" aria-label="Офферы потока ${esc(s.name)}">
+      <colgroup><col class="col-offer"><col class="col-share"><col class="col-stats"><col class="col-trends"><col class="col-actions"></colgroup>
+      <thead class="sr-only"><tr><th>Offer</th><th>Share</th><th>Stats</th><th>Trends</th><th>Actions</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>
+    </table>
     <div class="add-row">
       <input class="input add-input" aria-label="Добавить оффер: ID или название" placeholder="Offer ID или название" autocomplete="off">
       <button class="btn small primary" data-act="add">ADD</button>
@@ -151,7 +170,6 @@ function renderStreamInto(card, s) {
       <div class="stream-title">Stream: ${esc(s.name)} (#${s.position})
         <span class="muted">${details}</span>
       </div>
-      ${s.is_offer_stream ? `<button class="btn small" data-act="showall">SHOW ALL OFFERS</button>` : ""}
     </div>
     ${draftActions}
     ${streamBodyHtml(s)}`;
@@ -159,6 +177,11 @@ function renderStreamInto(card, s) {
 }
 
 function replaceCard(streamDto) {
+  const previous = streamDtos.find(s => s.kt_stream_id === streamDto.kt_stream_id);
+  if (streamDto.clicks_today == null && previous && previous.clicks_today != null) {
+    streamDto = {...streamDto, clicks_today: previous.clicks_today};
+  }
+  streamDtos = streamDtos.map(s => s.kt_stream_id === streamDto.kt_stream_id ? streamDto : s);
   const card = streamCards.get(streamDto.kt_stream_id);
   if (card) renderStreamInto(card, streamDto);
 }
@@ -221,15 +244,14 @@ function attachOfferAutocomplete(input, suggestBox, onPicked) {
   const render = (items) => {
     if (!items.length) { suggestBox.classList.add("hidden"); return; }
     suggestBox.innerHTML = items.map(o =>
-      `<div class="suggest-item" data-id="${o.offer_id}">${o.offer_id}
-         <span class="muted">${esc(o.name)}</span></div>`).join("");
+      `<div class="suggest-item" data-id="${o.offer_id}">${offerName(o)}</div>`).join("");
     suggestBox.classList.remove("hidden");
     [...suggestBox.children].forEach(item => {
       item.addEventListener("mousedown", (ev) => {
         ev.preventDefault();
         const id = Number(item.dataset.id);
         const o = items.find(x => x.offer_id === id);
-        input.value = `${id} ${o.name}`;
+        input.value = (o.name === String(id) || String(o.name || "").startsWith(id + " ") || String(o.name || "").startsWith("[" + id + "]")) ? o.name : `${id} ${o.name}`;
         pickedOffers.set(input, o);
         if (onPicked) onPicked(o);
         suggestBox.classList.add("hidden");
@@ -250,40 +272,58 @@ function attachOfferAutocomplete(input, suggestBox, onPicked) {
   input.addEventListener("blur", () => setTimeout(() => suggestBox.classList.add("hidden"), 150));
 }
 
-/* ---------- модалка «все офферы» ---------- */
+/* ---------- глобальный каталог офферов ---------- */
 let modalStreamId = null;
+let modalOffset = 0;
+let modalHasMore = false;
+let modalRequest = 0;
+let catalogAdding = false;
+const modalLimit = 50;
 
-function openModal(streamId) {
-  modalStreamId = streamId;
+function closeModal() {
+  $("#modal").classList.add("hidden");
+  $("#showAllBtn").focus();
+}
+
+function openModal() {
+  const offerStreams = streamDtos.filter(s => s.is_offer_stream);
+  const select = $("#modalStreamSelect");
+  select.innerHTML = offerStreams.map(s => `<option value="${s.kt_stream_id}">${esc(s.name)} (#${s.position})</option>`).join("");
+  if (offerStreams.some(s => s.kt_stream_id === modalStreamId)) select.value = String(modalStreamId);
+  modalStreamId = Number(select.value) || null;
+  $("#modalTarget").classList.toggle("hidden", !offerStreams.length);
+  $("#modalReadonly").classList.toggle("hidden", Boolean(offerStreams.length));
   $("#modalSearch").value = "";
-  $("#modalList").innerHTML = `<p class="muted">Начните вводить ID или название оффера…</p>`;
+  modalOffset = 0;
   $("#modal").classList.remove("hidden");
   $("#modalSearch").focus();
+  modalSearch();
 }
 
 async function modalSearch() {
+  const request = ++modalRequest;
   const q = $("#modalSearch").value.trim();
-  if (!q) return;
+  $("#modalList").innerHTML = `<p class="muted">Загружаем офферы…</p>`;
+  $("#modalPrev").disabled = true;
+  $("#modalNext").disabled = true;
   try {
-    const items = await api(`/api/offers/search?q=${encodeURIComponent(q)}`);
+    const data = await api(q ? `/api/offers/search?q=${encodeURIComponent(q)}` : `/api/offers?offset=${modalOffset}&limit=${modalLimit}`);
+    if (request !== modalRequest) return;
+    const items = q ? data : data.items;
+    modalHasMore = !q && data.has_more;
+    $("#modalPagination").classList.toggle("hidden", Boolean(q));
+    $("#modalPrev").disabled = modalOffset === 0;
+    $("#modalNext").disabled = !modalHasMore;
+    $("#modalPage").textContent = items.length ? `${modalOffset + 1}–${modalOffset + items.length}` : "Нет офферов";
     $("#modalList").innerHTML = items.length ? items.map(o => `
       <div class="modal-row">
-        <div class="name">${o.offer_id} <span class="muted">${esc(o.name)}</span></div>
-        <button class="btn small primary" data-offer-id="${o.offer_id}">ADD</button>
-      </div>`).join("")
-      : `<p class="muted">Ничего не найдено</p>`;
-    [...$("#modalList").querySelectorAll("button")].forEach(btn => {
-      btn.addEventListener("click", async () => {
-        try {
-          btn.disabled = true;
-          replaceCard(await api(`/api/streams/${modalStreamId}/offers`,
-            { method: "POST", body: { offer_id: Number(btn.dataset.offerId) } }));
-          $("#modal").classList.add("hidden");
-          toast(`Оффер ${btn.dataset.offerId} добавлен (не пушено)`);
-        } catch (e) { toast(e.message, true); btn.disabled = false; }
-      });
-    });
-  } catch (e) { toast(e.message, true); }
+        <div class="name">${offerName(o)} <a href="/api/offers/${o.offer_id}/preview" target="_blank" rel="noopener">(preview)</a></div>
+        ${modalStreamId ? `<button class="btn small primary" data-offer-id="${o.offer_id}">ADD</button>` : ""}
+      </div>`).join("") : `<p class="muted">Ничего не найдено</p>`;
+  } catch (e) {
+    if (request !== modalRequest) return;
+    $("#modalList").innerHTML = `<p class="error-text">${esc(e.message)}</p>`;
+  }
 }
 
 /* ---------- старт ---------- */
@@ -305,13 +345,34 @@ $("#campaignSelect").addEventListener("change", (ev) => {
   loadStreams().catch(e => toast(e.message, true));
 });
 
-$("#modalClose").addEventListener("click", () => $("#modal").classList.add("hidden"));
+$("#showAllBtn").addEventListener("click", openModal);
+$("#modalClose").addEventListener("click", closeModal);
 $("#modal").addEventListener("click", (ev) => {
-  if (ev.target.id === "modal") $("#modal").classList.add("hidden");
+  if (ev.target.id === "modal") closeModal();
 });
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && !$("#modal").classList.contains("hidden")) closeModal();
+});
+$("#modalStreamSelect").addEventListener("change", ev => { modalStreamId = Number(ev.target.value) || null; });
+$("#modalPrev").addEventListener("click", () => { if (modalOffset > 0) { modalOffset = Math.max(0, modalOffset - modalLimit); modalSearch(); } });
+$("#modalNext").addEventListener("click", () => { if (modalHasMore) { modalOffset += modalLimit; modalSearch(); } });
+$("#modalList").onclick = async ev => {
+  const btn = ev.target.closest("button[data-offer-id]");
+  if (!btn || !modalStreamId || catalogAdding) return;
+  const streamId = modalStreamId;
+  catalogAdding = true;
+  btn.disabled = true;
+  try {
+    replaceCard(await api(`/api/streams/${streamId}/offers`, {method: "POST", body: {offer_id: Number(btn.dataset.offerId)}}));
+    closeModal();
+    toast(`Оффер ${btn.dataset.offerId} добавлен (не пушено)`);
+  } catch (e) { toast(e.message, true); }
+  finally { catalogAdding = false; btn.disabled = false; }
+};
 let modalTimer = null;
 $("#modalSearch").addEventListener("input", () => {
   clearTimeout(modalTimer);
+  modalOffset = 0;
   modalTimer = setTimeout(modalSearch, 250);
 });
 

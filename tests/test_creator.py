@@ -59,3 +59,20 @@ def test_create_campaign_validations(db, kt):
         create_campaign(db, kt, name="x", geos=["  "], offer_id=11111)
     with pytest.raises(NotFound):
         create_campaign(db, kt, name="x", geos=["AU"], offer_id=999999)
+
+
+def test_new_demo_campaign_does_not_inherit_archive_after_mock_reset(db, kt):
+    from app.services import mutate
+    first = create_campaign(db, kt, name="test_karin_before_restart", geos=["AU"],
+                            offer_id=3749)
+    from app.models import Campaign
+    old = db.get(Campaign, first["kt_campaign_id"])
+    old_stream = next(s for s in old.streams if s.is_offer_stream)
+    mutate.add_offer(db, kt, old_stream.kt_stream_id, 11112)
+    mock_main.reset_state()
+    second = create_campaign(db, kt, name="test_karin_after_restart", geos=["MX"],
+                             offer_id=11111)
+    assert second["kt_campaign_id"] != first["kt_campaign_id"]
+    new = db.get(Campaign, second["kt_campaign_id"])
+    bindings = [b for s in new.streams for b in s.bindings]
+    assert [(b.kt_offer_id, b.share) for b in bindings] == [(11111, 100)]
