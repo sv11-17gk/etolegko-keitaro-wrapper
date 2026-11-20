@@ -31,10 +31,6 @@ def _get_binding(db: Session, binding_id: int) -> OfferBinding:
     return b
 
 
-def _published_ids(stream: Stream) -> set[int]:
-    return {int(x["offer_id"]) for x in (stream.published_offers or [])}
-
-
 def add_offer(db: Session, kt: KeitaroClient, kt_stream_id: int, offer_id: int) -> Stream:
     stream = _get_stream(db, kt_stream_id)
     if not stream.is_offer_stream:
@@ -51,11 +47,11 @@ def add_offer(db: Session, kt: KeitaroClient, kt_stream_id: int, offer_id: int) 
         b = OfferBinding(
             stream=stream,
             kt_offer_id=offer_id,
+            added_unpushed=True,
             position=(max((x.position for x in stream.bindings), default=-1) + 1),
         )
         db.add(b)
     b.state = ACTIVE
-    b.added_unpushed = offer_id not in _published_ids(stream)
     recalc_stream(db, stream)
     db.commit()
     return stream
@@ -72,7 +68,6 @@ def remove_binding(db: Session, binding_id: int) -> OfferBinding:
 def bring_back_binding(db: Session, binding_id: int) -> OfferBinding:
     b = _get_binding(db, binding_id)
     b.state = ACTIVE
-    b.added_unpushed = b.kt_offer_id not in _published_ids(b.stream)
     recalc_stream(db, b.stream)
     db.commit()
     return b
@@ -81,7 +76,6 @@ def bring_back_binding(db: Session, binding_id: int) -> OfferBinding:
 def set_pin(db: Session, binding_id: int, pinned: bool) -> OfferBinding:
     b = _get_binding(db, binding_id)
     b.pinned = bool(pinned)
-    recalc_stream(db, b.stream)
     db.commit()
     return b
 

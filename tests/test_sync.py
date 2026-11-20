@@ -15,7 +15,7 @@ def test_fetch_builds_streams(db, kt, campaign):
     # поток без офферов: фиксируем как поток, содержимое не парсим
     assert flow1.is_offer_stream is False
     assert flow1.bindings == []
-    assert flow1.kt_meta["filters"][0]["payload"] == ["AU"]
+    assert flow1.kt_meta["filters"] == []
     assert flow2.is_offer_stream is True
     assert flow2.published_offers == [
         {"offer_id": 3749, "share": 33},
@@ -84,3 +84,16 @@ def test_fetch_empty_offer_stream_preserves_archive_and_bring_back(db, kt, strea
     push_stream(db, kt, 564221)
     assert mock_main.STREAMS[564221]["offers"] == [
         {"offer_id": 3749, "share": 100, "state": "active"}]
+
+
+def test_non_offer_stream_does_not_parse_its_filters(db, kt):
+    from app.api.routes import stream_dto
+
+    mock_main.STREAMS[564220]["filters"] = [
+        {"name": "ignored_filter", "payload": {"opaque": 42}}]
+    campaign = fetch_campaign(db, kt, 93212)
+    flow = next(s for s in campaign.streams if s.kt_stream_id == 564220)
+    dto = stream_dto(db, flow)
+    assert not dto["is_offer_stream"]
+    assert dto["filter_summary"] is None
+    assert dto["offers"] == []

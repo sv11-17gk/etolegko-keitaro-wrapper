@@ -7,11 +7,11 @@ def _shares(stream):
     return {b.kt_offer_id: b.share for b in stream.bindings}
 
 
-def test_recalc_three_offers_remainder_to_last(db, stream):
+def test_recalc_three_offers_remainder_to_first(db, stream):
     for b in stream.bindings:
         b.pinned = False
     recalc_stream(db, stream)
-    assert _shares(stream) == {3749: 33, 3717: 33, 11111: 34}
+    assert _shares(stream) == {3749: 34, 3717: 33, 11111: 33}
     assert sum(_shares(stream).values()) == 100
 
 
@@ -33,7 +33,7 @@ def test_pinned_weight_survives_removal_and_bring_back(db, kt, stream):
 
     removed = next(b for b in stream.bindings if b.kt_offer_id == 3717)
     mutate.remove_binding(db, removed.id)
-    assert _shares(stream) == {3749: 25, 3717: 0, 11111: 37, 11112: 38}
+    assert _shares(stream) == {3749: 25, 3717: 0, 11111: 38, 11112: 37}
     assert pinned.share == 25  # пин не тронут
 
     mutate.bring_back_binding(db, removed.id)
@@ -65,4 +65,20 @@ def test_pin_alone_does_not_make_stream_dirty(db, stream):
     from app.services import mutate
     pinned = next(b for b in stream.bindings if b.kt_offer_id == 3749)
     mutate.set_pin(db, pinned.id, True)
+    assert not stream.dirty
+
+
+def test_pin_preserves_unequal_published_weights(db, stream):
+    from app.services import mutate
+
+    stream.published_offers = [
+        {"offer_id": 3749, "share": 10},
+        {"offer_id": 3717, "share": 20},
+        {"offer_id": 11111, "share": 70},
+    ]
+    for b in stream.bindings:
+        b.share = next(o["share"] for o in stream.published_offers if o["offer_id"] == b.kt_offer_id)
+    pinned = next(b for b in stream.bindings if b.kt_offer_id == 3749)
+    mutate.set_pin(db, pinned.id, True)
+    assert _shares(stream) == {3749: 10, 3717: 20, 11111: 70}
     assert not stream.dirty

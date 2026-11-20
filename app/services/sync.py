@@ -88,7 +88,7 @@ def fetch_campaign(db: Session, kt: KeitaroClient, kt_campaign_id: int) -> Campa
                 {"name": f.get("name"), "mode": f.get("mode"),
                  "payload": f.get("payload")}
                 for f in (s.get("filters") or [])
-            ],
+            ] if stream.is_offer_stream else [],
         }
 
         if stream.is_offer_stream:

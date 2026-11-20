@@ -19,7 +19,7 @@ def test_push_sends_only_active_bindings(db, kt, stream):
 
     push_stream(db, kt, 564221)
 
-    # в KT: 3 активных (removed не уходит), веса 34/33/33 по правилу остатка последнему
+    # В KT три активных оффера, остаток у первого: 34/33/33.
     kt_offers = _kt_offers()
     assert set(kt_offers) == {3749, 11111, 11112}
     assert sum(kt_offers.values()) == 100

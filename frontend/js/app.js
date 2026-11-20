@@ -107,8 +107,7 @@ function offerRowHtml(o) {
 
 function streamBodyHtml(s) {
   if (!s.is_offer_stream) {
-    return `<p class="muted">Поток без офферов (redirect/action) — содержимое не парсим,
-      как в оригинальной обёртке.</p>`;
+    return "";
   }
   const rows = s.offers.map(offerRowHtml).join("");
   return `
@@ -137,6 +136,9 @@ function renderStreamInto(card, s) {
   card.className = "card stream" + (s.dirty ? " dirty" : "");
   card.dataset.streamId = s.kt_stream_id;
   const clicks = s.clicks_today == null ? "" : `, clicks today: ${s.clicks_today}`;
+  const details = s.is_offer_stream
+    ? `filter by ${esc(s.filter_summary)}, stream_id ${s.kt_stream_id}${clicks}`
+    : `stream_id ${s.kt_stream_id}`;
   const headActions = `
     ${s.is_offer_stream ? `<button class="btn small" data-act="showall">SHOW ALL OFFERS</button>` : ""}
     ${s.dirty && s.is_offer_stream ? `
@@ -145,7 +147,7 @@ function renderStreamInto(card, s) {
   card.innerHTML = `
     <div class="stream-head">
       <div class="stream-title">Stream: ${esc(s.name)} (#${s.position})
-        <span class="muted">filter by ${esc(s.filter_summary)}, stream_id ${s.kt_stream_id}${clicks}</span>
+        <span class="muted">${details}</span>
       </div>
       <div class="stream-actions">${headActions}</div>
     </div>
@@ -162,7 +164,7 @@ function replaceCard(streamDto) {
 function bindStreamEvents(card, s) {
   const sid = s.kt_stream_id;
 
-  card.addEventListener("click", async (ev) => {
+  card.onclick = async (ev) => {
     const btn = ev.target.closest("button");
     if (!btn) return;
     const act = btn.dataset.act;
@@ -204,7 +206,7 @@ function bindStreamEvents(card, s) {
     } finally {
       btn.disabled = false;
     }
-  });
+  };
 
   const input = $(".add-input", card);
   if (input) attachOfferAutocomplete(input, $(".suggest", card));

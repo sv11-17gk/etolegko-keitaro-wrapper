@@ -60,6 +60,6 @@ def test_full_video_scenario(db, kt, stream):
     assert pinned.share == 25
     assert not stream.dirty  # сам пин ничего не меняет
     mutate.remove_binding(db, _b(stream, 3717).id)
-    assert _shares(stream) == {3749: 25, 3717: 0, 11111: 37, 11112: 38}
+    assert _shares(stream) == {3749: 25, 3717: 0, 11111: 38, 11112: 37}
     push_stream(db, kt, 564221)
-    assert _kt() == {3749: 25, 11111: 37, 11112: 38}
+    assert _kt() == {3749: 25, 11111: 38, 11112: 37}

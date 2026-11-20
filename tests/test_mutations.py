@@ -71,3 +71,23 @@ def test_remove_makes_dirty_and_zero_share(db, stream):
     assert victim.state == "removed"
     assert victim.share == 0
     assert stream.dirty
+
+
+@pytest.mark.parametrize("restore", ["bring_back", "add"])
+def test_cancel_restored_archive_keeps_its_binding(db, kt, stream, restore):
+    from app.services.push import push_stream
+
+    victim = _bindings(stream)[3749]
+    original_id = victim.id
+    mutate.remove_binding(db, original_id)
+    push_stream(db, kt, stream.kt_stream_id)
+    if restore == "bring_back":
+        mutate.bring_back_binding(db, original_id)
+    else:
+        mutate.add_offer(db, kt, stream.kt_stream_id, victim.kt_offer_id)
+    assert stream.dirty
+    mutate.cancel_stream(db, stream.kt_stream_id)
+    assert _bindings(stream)[3749].id == original_id
+    assert _bindings(stream)[3749].state == "removed"
+    assert _bindings(stream)[3749].share == 0
+    assert not stream.dirty

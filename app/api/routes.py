@@ -196,7 +196,7 @@ def stream_dto(db: Session, stream: Stream, clicks_today: int | None = None) -> 
         "position": stream.position,
         "type": meta.get("type"),
         "action_type": meta.get("action_type"),
-        "filter_summary": _filter_summary(stream),
+        "filter_summary": _filter_summary(stream) if stream.is_offer_stream else None,
         "is_offer_stream": stream.is_offer_stream,
         "dirty": stream.dirty,
         "warning": stream.warning,
