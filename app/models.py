@@ -43,7 +43,7 @@ class Campaign(Base):
 
 class Stream(Base):
     """Поток кампании. Для не-офферных потоков (Flow 1, редирект на Google) содержимое
-    не парсим и не показываем — так работает и их обёртка."""
+    не редактируем; по уточнению v2 фильтры доступны в шапке."""
     __tablename__ = "streams"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

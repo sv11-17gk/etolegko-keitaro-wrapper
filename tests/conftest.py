@@ -34,7 +34,7 @@ def db():
 def kt():
     mock_main.reset_state()
     test_client = TestClient(mock_app, base_url="http://mock-keitaro.local/admin_api/v1/")
-    client = KeitaroClient("http://mock-keitaro.local", "mock-key", client=test_client)
+    client = KeitaroClient("http://mock-keitaro.local", "mock-key", client=test_client, demo_mode=True)
     try:
         yield client
     finally:

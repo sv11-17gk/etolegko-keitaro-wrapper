@@ -23,10 +23,11 @@ def _bindings(stream):
 def test_fetch_builds_streams(db, kt, campaign):
     flow1 = next(s for s in campaign.streams if s.kt_stream_id == 564220)
     flow2 = next(s for s in campaign.streams if s.kt_stream_id == 564221)
-    # поток без офферов: фиксируем как поток, содержимое не парсим
+    # ТЗ v2: фильтры отображаются у любого потока, состав офферов не придумываем.
     assert flow1.is_offer_stream is False
     assert flow1.bindings == []
-    assert flow1.kt_meta["filters"] == []
+    assert flow1.kt_meta["filters"] == [
+        {"name": "country", "mode": "accept", "payload": ["AU"]}]
     assert flow2.is_offer_stream is True
     assert flow2.published_offers == [
         {"offer_id": 3749, "share": 33},

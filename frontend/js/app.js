@@ -42,6 +42,7 @@ let campaigns = [];
 let currentCampaignId = null;
 let streamDtos = [];
 const streamCards = new Map(); // kt_stream_id -> <section>
+const offerStatistics = new Map(); // kt_stream_id -> Map(offer_id -> stats)
 
 /* ---------- кампании ---------- */
 async function loadCampaigns(preferredId) {
@@ -78,6 +79,7 @@ function updateViewInKt() {
 async function loadStreams() {
   const box = $("#streams");
   streamCards.clear();
+  offerStatistics.clear();
   streamDtos = [];
   box.innerHTML = `<p class="empty">Загружаем потоки…</p>`;
   if (!currentCampaignId) {
@@ -87,7 +89,11 @@ async function loadStreams() {
   const streams = await api(`/api/campaigns/${currentCampaignId}/streams`);
   box.innerHTML = "";
   streamDtos = [...streams].sort((a, b) => Number(b.is_offer_stream) - Number(a.is_offer_stream) || a.position - b.position);
-  for (const s of streamDtos) box.appendChild(buildStreamCard(s));
+  for (const s of streamDtos) {
+    const card = buildStreamCard(s);
+    box.appendChild(card);
+    if (s.is_offer_stream) loadOfferStatistics(s.kt_stream_id, card);
+  }
   if (!streams.length) box.innerHTML = `<p class="empty">В этой кампании пока нет потоков.</p>`;
 }
 
@@ -104,7 +110,51 @@ function offerName(o) {
     ? esc(name) : `<span class="offer-id">${id}</span> ${esc(name)}`;
 }
 
-function offerRowHtml(o) {
+function statisticsHtml(o, stats) {
+  if (o.state === "removed" || !stats) {
+    return {stats: "—", trends: "—"};
+  }
+  const safeCount = value => Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : 0;
+  const week = Array.from({length: 7}, (_, index) => safeCount((stats.week || [])[index]));
+  const clicks = safeCount(stats.clicks_today);
+  const low = Math.min(...week), high = Math.max(...week);
+  const points = week.map((value, index) => {
+    const x = 2 + index * 136 / 6;
+    const y = high === low ? 14 : 26 - (value - low) * 24 / (high - low);
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(" ");
+  const label = `Клики за последние 7 дней: ${week.join(", ")}`;
+  return {
+    stats: `<span title="Клики оффера за сегодня">${clicks}</span>`,
+    trends: `<svg class="sparkline" viewBox="0 0 140 28" role="img" aria-label="${label}"><title>${label}</title><polyline points="${points}" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`,
+  };
+}
+
+async function loadOfferStatistics(sid, card) {
+  try {
+    const data = await api(`/api/streams/${sid}/stats`);
+    if (streamCards.get(sid) !== card) return;
+    const stats = new Map((data.offers || []).map(o => [o.offer_id, o]));
+    offerStatistics.set(sid, stats);
+    const current = streamDtos.find(s => s.kt_stream_id === sid);
+    for (const offer of current ? current.offers : []) {
+      const row = card.querySelector(`[data-binding="${offer.binding_id}"]`);
+      if (!row) continue;
+      const html = statisticsHtml(offer, stats.get(offer.offer_id) || {clicks_today: 0, week: []});
+      $(".stats-cell", row).innerHTML = html.stats;
+      $(".trends-cell", row).innerHTML = html.trends;
+    }
+  } catch (e) {
+    if (streamCards.get(sid) !== card) return;
+    // Ошибка отчёта не превращается в вымышленные нули и не блокирует редактирование.
+    for (const cell of card.querySelectorAll(".stats-cell, .trends-cell")) {
+      cell.textContent = "—";
+      cell.title = `Статистика недоступна: ${e.message}`;
+    }
+  }
+}
+
+function offerRowHtml(o, stats) {
   const removed = o.state === "removed";
   const actionBtn = removed
     ? `<button class="btn small" data-act="bringback" data-id="${o.binding_id}">BRING BACK</button>`
@@ -112,13 +162,14 @@ function offerRowHtml(o) {
   const pinBtn = removed
     ? ``
     : `<button class="btn small pin-btn${o.pinned ? " pinned" : ""}" data-act="pin" data-id="${o.binding_id}"
-         title="${o.pinned ? "Открепить вес" : "Закрепить вес"}" aria-pressed="${o.pinned}" data-pinned="${o.pinned ? "0" : "1"}">${o.pinned ? "UNPIN" : "PIN"}</button>`;
+         title="${o.pinned ? "Открепить вес" : "Закрепить вес"}" aria-pressed="${Boolean(o.pinned)}" data-pinned="${o.pinned ? "0" : "1"}">${o.pinned ? "UNPIN" : "PIN"}</button>`;
+  const statistics = statisticsHtml(o, stats);
   return `<tr class="${removed ? "removed" : ""}" data-binding="${o.binding_id}">
     <td class="name-cell">${offerName(o)}
       ${removed ? `<span class="removed-tag">(removed)</span>` : ""}
       <a class="offer-preview" href="${esc(o.preview_url || `/api/offers/${o.offer_id}/preview`)}" target="_blank" rel="noopener">(preview)</a></td>
     <td class="share"><div class="share-control"><span>${o.share}%</span>${pinBtn}</div></td>
-    <td class="stats-cell"></td><td class="trends-cell"></td>
+    <td class="stats-cell">${statistics.stats}</td><td class="trends-cell">${statistics.trends}</td>
     <td class="offer-actions">${actionBtn}</td>
   </tr>`;
 }
@@ -129,7 +180,10 @@ function streamBodyHtml(s) {
   }
   const rows = [...s.offers]
     .sort((a, b) => Number(a.state === "removed") - Number(b.state === "removed") || b.share - a.share)
-    .map(offerRowHtml).join("");
+    .map(o => {
+      const report = offerStatistics.get(s.kt_stream_id);
+      return offerRowHtml(o, report ? report.get(o.offer_id) || {clicks_today: 0, week: []} : null);
+    }).join("");
   return `
     ${s.warning ? `<div class="stream-warning">${esc(s.warning)}</div>` : ""}
     <table class="offers" aria-label="Офферы потока ${esc(s.name)}">
@@ -157,9 +211,9 @@ function renderStreamInto(card, s) {
   card.className = "card stream" + (s.dirty ? " dirty" : "");
   card.dataset.streamId = s.kt_stream_id;
   const clicks = s.clicks_today == null ? "" : `, clicks today: ${s.clicks_today}`;
-  const details = s.is_offer_stream
-    ? `filter by ${esc(s.filter_summary)}, stream_id ${s.kt_stream_id}${clicks}`
-    : `stream_id ${s.kt_stream_id}`;
+  const filter = typeof s.filter_summary === "string" && s.filter_summary.trim()
+    ? `filter by ${esc(s.filter_summary)}, ` : "";
+  const details = `${filter}stream_id ${s.kt_stream_id}${clicks}`;
   const draftActions = s.dirty && s.is_offer_stream ? `
     <div class="draft-actions">
       <button class="btn small primary" data-act="push">PUSH TO KT</button>
@@ -183,7 +237,13 @@ function replaceCard(streamDto) {
   }
   streamDtos = streamDtos.map(s => s.kt_stream_id === streamDto.kt_stream_id ? streamDto : s);
   const card = streamCards.get(streamDto.kt_stream_id);
-  if (card) renderStreamInto(card, streamDto);
+  if (card) {
+    renderStreamInto(card, streamDto);
+    const report = offerStatistics.get(streamDto.kt_stream_id);
+    if (report && streamDto.offers.some(o => o.state !== "removed" && !report.has(o.offer_id))) {
+      loadOfferStatistics(streamDto.kt_stream_id, card);
+    }
+  }
 }
 
 /* ---------- обработчики потока ---------- */

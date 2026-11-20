@@ -6,7 +6,7 @@
   заменяется ответом KT;
 - офферы, исчезнувшие в KT, не удаляются, а переводятся в removed (серый,
   share 0, BRING BACK) — так ведёт себя их обёртка по видео;
-- потоки без offers[] фиксируются как потоки, содержимое не парсим;
+- потоки без offers[] не получают редактор офферов; фильтры сохраняем для шапки (v2);
 - локальные непушенные добавления (added_unpushed) при fetch стираются:
   истина — KT.
 """
@@ -94,7 +94,7 @@ def fetch_campaign(db: Session, kt: KeitaroClient, kt_campaign_id: int) -> Campa
                 {"name": f.get("name"), "mode": f.get("mode"),
                  "payload": f.get("payload")}
                 for f in (s.get("filters") or [])
-            ] if stream.is_offer_stream else [],
+            ],
         }
 
         if stream.is_offer_stream:

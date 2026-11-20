@@ -6,7 +6,7 @@
 обновляет только переданные поля.
 """
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 import httpx
 
@@ -24,7 +24,9 @@ class KtError(Exception):
 
 
 class KeitaroClient:
-    def __init__(self, base_url: str, api_key: str, client: httpx.Client | None = None):
+    def __init__(self, base_url: str, api_key: str, client: httpx.Client | None = None,
+                 *, demo_mode: bool = False):
+        self._demo_mode = demo_mode
         # client подставляется в тестах (starlette TestClient поверх mock-приложения);
         # в бою строим обычный синхронный httpx.Client с базой {root}/admin_api/v1/
         if client is not None:
@@ -162,3 +164,43 @@ class KeitaroClient:
             except (TypeError, ValueError):
                 continue
         return out
+
+    def report_offer_clicks(self, stream_id: int) -> dict[int, dict]:
+        """Семь календарных дней, включая сегодня; один отчёт на поток.
+
+        dimensions/measures/filters — контракт настоящего Admin API.
+        group_by/stream_id сохраняют явный контракт демо-отчёта из ТЗ v2.
+        """
+        today = date.today()
+        first = today - timedelta(days=6)
+        payload = {
+            "range": {"from": first.isoformat(), "to": today.isoformat()},
+            "dimensions": ["offer_id", "day"], "measures": ["clicks"],
+            "filters": [{"name": "stream_id", "operator": "EQUALS", "expression": stream_id}],
+        }
+        if self._demo_mode:
+            payload.update(group_by=["offer_id"], stream_id=stream_id)
+        data = self._request("POST", "report/build", json=payload)
+        rows = data.get("rows", []) if isinstance(data, dict) else data
+        meta = data.get("meta", []) if isinstance(data, dict) else []
+        names = [str(m.get("name") or m.get("key") or "") if isinstance(m, dict) else str(m)
+                 for m in meta or []]
+        result: dict[int, dict] = {}
+        for row in rows or []:
+            if isinstance(row, list) and names:
+                row = dict(zip(names, row))
+            if not isinstance(row, dict):
+                continue
+            try:
+                offer_id = int(row["offer_id"])
+                day = date.fromisoformat(str(row.get("date") or row.get("day"))[:10])
+                clicks = max(0, int(row.get("clicks") or 0))
+            except (KeyError, TypeError, ValueError):
+                continue
+            index = (day - first).days
+            if not 0 <= index < 7:
+                continue
+            stats = result.setdefault(offer_id, {"clicks_today": 0, "week": [0] * 7})
+            stats["week"][index] += clicks
+            stats["clicks_today"] = stats["week"][-1]
+        return result

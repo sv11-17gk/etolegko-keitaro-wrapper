@@ -10,6 +10,7 @@
 import random
 import string
 import time
+from datetime import date, timedelta
 
 from fastapi import FastAPI, Header, HTTPException, Request
 
@@ -70,11 +71,16 @@ def _seed_campaigns():
 
 
 def reset_state() -> None:
-    global OFFERS, STREAMS, CAMPAIGNS, CLICKS, DOMAINS, GROUPS, SOURCES, _next_id
+    global OFFERS, STREAMS, CAMPAIGNS, CLICKS, OFFER_STATS, DOMAINS, GROUPS, SOURCES, _next_id
     OFFERS = _seed_offers()
     STREAMS = _seed_streams()
     CAMPAIGNS = _seed_campaigns()
-    CLICKS = {564220: 0, 564221: 1}
+    OFFER_STATS = {564221: {
+        3749: {"today": 12, "week": [6, 9, 7, 11, 10, 14, 12]},
+        3717: {"today": 8, "week": [5, 6, 8, 7, 9, 6, 8]},
+        11111: {"today": 10, "week": [7, 8, 6, 9, 8, 11, 10]},
+    }}
+    CLICKS = {564220: 0, 564221: 30}
     DOMAINS = [{"id": 1, "name": "in.posdk.xyz", "state": "active"}]
     GROUPS = [{"id": 1, "name": "FORTESTS", "type": "campaigns"}]
     SOURCES = [{"id": 1, "name": "FORTESTS", "state": "active"}]
@@ -234,6 +240,28 @@ def traffic_sources(api_key: str | None = Header(default=None)):
 @app.post("/admin_api/v1/report/build")
 async def report_build(request: Request, api_key: str | None = Header(default=None)):
     _auth(api_key)
+    body = await request.json()
+    if "offer_id" in (body.get("group_by") or []):
+        today = date.today()
+        first = today - timedelta(days=6)
+        time_range = body.get("range") or {}
+        start = date.fromisoformat(time_range.get("from", first.isoformat())[:10])
+        end = date.fromisoformat(time_range.get("to", today.isoformat())[:10])
+        selected = body.get("stream_id")
+        rows = []
+        for sid, stream in STREAMS.items():
+            if selected is not None and sid != int(selected):
+                continue
+            stats = OFFER_STATS.get(sid, {})
+            offer_ids = set(stats) | {o["offer_id"] for o in stream.get("offers", [])}
+            for oid in sorted(offer_ids):
+                week = stats.get(oid, {}).get("week", [0] * 7)
+                for index, clicks in enumerate(week):
+                    day = first + timedelta(days=index)
+                    if start <= day <= end:
+                        rows.append({"offer_id": oid, "date": day.isoformat(), "clicks": clicks})
+        return {"rows": rows, "total": sum(r["clicks"] for r in rows),
+                "meta": [{"name": k} for k in ("offer_id", "date", "clicks")]}
     rows = [{"stream_id": sid, "clicks": clicks}
             for sid, clicks in CLICKS.items() if clicks]
     return {"rows": rows, "total": sum(CLICKS.values()),

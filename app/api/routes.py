@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api")
 
 
 def get_kt() -> KeitaroClient:
-    client = KeitaroClient(settings.kt_base_url, settings.kt_api_key)
+    client = KeitaroClient(settings.kt_base_url, settings.kt_api_key, demo_mode=settings.demo_mode)
     try:
         yield client
     finally:
@@ -101,6 +101,20 @@ def push_to_kt(kt_stream_id: int, db: Session = Depends(get_db),
                kt: KeitaroClient = Depends(get_kt)):
     stream = push.push_stream(db, kt, kt_stream_id)
     return stream_dto(db, stream)
+
+
+@router.get("/streams/{kt_stream_id}/stats")
+def offer_stats(kt_stream_id: int, db: Session = Depends(get_db),
+                kt: KeitaroClient = Depends(get_kt)):
+    stream = db.scalar(select(Stream).where(Stream.kt_stream_id == kt_stream_id))
+    if stream is None:
+        raise HTTPException(404, "Поток не найден")
+    report = kt.report_offer_clicks(kt_stream_id)
+    return {"stream_id": kt_stream_id, "offers": [
+        {"offer_id": b.kt_offer_id,
+         **report.get(b.kt_offer_id, {"clicks_today": 0, "week": [0] * 7})}
+        for b in sorted(stream.bindings, key=lambda b: b.position)
+    ]}
 
 
 @router.post("/streams/{kt_stream_id}/cancel")
@@ -239,15 +253,21 @@ def _offer_dto(offer: dict) -> dict:
             "affiliate_network_id": offer.get("affiliate_network_id")}
 
 
-def _filter_summary(stream: Stream) -> str:
+def _filter_summary(stream: Stream) -> str | None:
     filters = (stream.kt_meta or {}).get("filters") or []
     if not filters:
-        return "None"
+        return None
     parts = []
     for f in filters:
-        payload = ",".join(f.get("payload") or [])
+        # Неизвестные/неструктурированные фильтры не ломают шапку потока.
+        if not isinstance(f, dict) or not f.get("name") or not f.get("mode"):
+            continue
+        values = f.get("payload") or []
+        if not isinstance(values, list):
+            continue
+        payload = ",".join(str(value) for value in values)
         parts.append(f"{f.get('name')} {f.get('mode')} [{payload}]")
-    return "; ".join(parts)
+    return "; ".join(parts) or None
 
 
 def stream_dto(db: Session, stream: Stream, clicks_today: int | None = None) -> dict:
@@ -272,7 +292,7 @@ def stream_dto(db: Session, stream: Stream, clicks_today: int | None = None) -> 
         "position": stream.position,
         "type": meta.get("type"),
         "action_type": meta.get("action_type"),
-        "filter_summary": _filter_summary(stream) if stream.is_offer_stream else None,
+        "filter_summary": _filter_summary(stream),
         "is_offer_stream": stream.is_offer_stream,
         "dirty": stream.dirty,
         "warning": stream.warning,
