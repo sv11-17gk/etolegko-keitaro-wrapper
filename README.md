@@ -19,8 +19,13 @@ docker compose up --build
 
 Поднимаются два сервиса:
 
-- **обёртка**: http://localhost:8000 (редактор) и http://localhost:8000/create.html (создаватор);
+- **обёртка**: http://localhost:8000 — корень показывает лендинг-обложку проекта
+  (с галереей состояний и сценарием проверки), редактор: http://localhost:8000/index.html,
+  создаватор: http://localhost:8000/create.html, Swagger API: http://localhost:8000/docs;
 - **mock-Keitaro**: http://localhost:8081 — фейковый Admin API с фикстурой тестовой кампании `campaign 2` (2 потока, 3 оффера с весами 33/33/34), как на скриншотах ТЗ. В демо режиме состояния mock-Keitaro живут в памяти процесса.
+
+Перед деплоем обложки на публичный домен впишите ссылку на GitHub-репозиторий в
+`frontend/landing.html` (плейсхолдер `YOUR-USER`).
 
 ### Вариант 2 — локально с реальным Keitaro
 
@@ -110,7 +115,8 @@ app/
   services/          weights (пересчёт), sync (fetch), mutate (add/remove/pin/cancel),
                      push, creator (создаватор кампаний)
   api/routes.py      REST /api/... + раздача ошибок Keitaro как 502 с телом ошибки
-frontend/            index.html (редактор), create.html (создаватор), vanilla JS, без сборки
+frontend/            landing.html (обложка на /), index.html (редактор), create.html
+                     (создаватор), img/ (скриншоты), vanilla JS, без сборки
 mock_keitaro/        фейковый Admin API для демо и тестов
 alembic/             миграции
 tests/               pytest + mock Keitaro через starlette TestClient

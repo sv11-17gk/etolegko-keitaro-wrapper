@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import install_error_handlers, router
@@ -41,4 +42,12 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Keitaro Wrapper (Adrobot T3)", lifespan=lifespan)
 app.include_router(router)
 install_error_handlers(app)
+
+
+@app.get("/", include_in_schema=False)
+def landing():
+    """Обложка проекта: на демо-домене корень показывает лендинг, редактор на /index.html."""
+    return FileResponse(ROOT / "frontend" / "landing.html")
+
+
 app.mount("/", StaticFiles(directory=ROOT / "frontend", html=True), name="frontend")
