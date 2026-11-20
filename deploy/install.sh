@@ -38,8 +38,12 @@ if [[ ! -f /etc/letsencrypt/live/etolegko.porfiry.ru/fullchain.pem ]]; then
     ln -sfn "$site" /etc/nginx/sites-enabled/etolegko-keitaro.conf
     nginx -t
     systemctl reload nginx
-    certbot certonly --webroot -w /var/www/certbot -d etolegko.porfiry.ru \
-        --non-interactive --agree-tos --register-unsafely-without-email
+    echo 'Внешний прокси перехватывает HTTP-01. Сертификат подтверждается через DNS.'
+    echo 'Certbot покажет TXT-запись _acme-challenge.etolegko.porfiry.ru.'
+    echo 'Добавьте её в DNS-зону porfiry.ru и дождитесь распространения, затем нажмите Enter.'
+    certbot certonly --manual --preferred-challenges dns \
+        --cert-name etolegko.porfiry.ru -d etolegko.porfiry.ru \
+        --agree-tos --register-unsafely-without-email
 fi
 install -m 644 deploy/etolegko.conf "$site"
 ln -sfn "$site" /etc/nginx/sites-enabled/etolegko-keitaro.conf
