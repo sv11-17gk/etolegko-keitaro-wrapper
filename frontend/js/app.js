@@ -174,10 +174,8 @@ function bindStreamEvents(card, s) {
         replaceCard(await api(`/api/streams/${sid}/push`, { method: "POST" }));
         toast("Изменения запушены в Keitaro");
       } else if (act === "cancel") {
-        if (confirm("Откатить непушенные изменения потока?")) {
-          replaceCard(await api(`/api/streams/${sid}/cancel`, { method: "POST" }));
-          toast("Изменения отменены");
-        }
+        replaceCard(await api(`/api/streams/${sid}/cancel`, { method: "POST" }));
+        toast("Изменения отменены");
       } else if (act === "remove") {
         replaceCard(await api(`/api/bindings/${btn.dataset.id}`, { method: "DELETE" }));
         toast("Оффер удалён из потока (не пушено)");

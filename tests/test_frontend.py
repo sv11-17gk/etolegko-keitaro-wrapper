@@ -54,8 +54,10 @@ context.stream = stream;
     await card.clickAction('pin', '1');
     await card.clickAction('pin', '0');
     await card.clickAction('remove');
+    await card.clickAction('cancel');
   })()`, context);
-  assert.deepEqual(requests.map(r => r.method), ['POST', 'POST', 'DELETE']);
+  assert.deepEqual(requests.map(r => r.method), ['POST', 'POST', 'DELETE', 'POST']);
+  assert.equal(requests[3].url, '/api/streams/42/cancel');
 })().catch(error => {console.error(error); process.exitCode = 1;});
 """
     result = subprocess.run([node, "-", str(source)], input=script, text=True,
