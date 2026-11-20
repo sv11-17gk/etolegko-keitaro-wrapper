@@ -88,6 +88,14 @@ def test_stats_failure_is_explicit_and_does_not_modify_the_stream(api, kt, monke
     assert api.get("/api/campaigns/93212/streams").json() == before
 
 
+def test_mock_also_accepts_the_real_keitaro_report_contract(kt):
+    from mock_keitaro.main import app as mock_app
+    with TestClient(mock_app, base_url="http://mock.local/admin_api/v1/") as http:
+        real_contract = KeitaroClient("http://mock.local", "mock-key", client=http)
+        assert real_contract.report_offer_clicks(564221)[3749] == {
+            "clicks_today": 12, "week": [6, 9, 7, 11, 10, 14, 12]}
+
+
 @pytest.mark.parametrize("array_rows", [False, True])
 @pytest.mark.parametrize("demo_mode", [False, True])
 def test_report_uses_one_request_and_fills_missing_dates(array_rows, demo_mode):

@@ -241,13 +241,16 @@ def traffic_sources(api_key: str | None = Header(default=None)):
 async def report_build(request: Request, api_key: str | None = Header(default=None)):
     _auth(api_key)
     body = await request.json()
-    if "offer_id" in (body.get("group_by") or []):
+    if "offer_id" in (body.get("group_by") or []) or "offer_id" in (body.get("dimensions") or []):
         today = date.today()
         first = today - timedelta(days=6)
         time_range = body.get("range") or {}
         start = date.fromisoformat(time_range.get("from", first.isoformat())[:10])
         end = date.fromisoformat(time_range.get("to", today.isoformat())[:10])
         selected = body.get("stream_id")
+        if selected is None:
+            selected = next((f.get("expression") for f in body.get("filters", [])
+                             if f.get("name") == "stream_id" and f.get("operator") == "EQUALS"), None)
         rows = []
         for sid, stream in STREAMS.items():
             if selected is not None and sid != int(selected):
