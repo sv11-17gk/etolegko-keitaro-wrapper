@@ -44,6 +44,11 @@ def recalc_stream(db: Session, stream: Stream) -> None:
         if b.state == REMOVED:
             b.share = 0
 
+    if not active:
+        stream.warning = "Нет активных офферов — добавьте оффер или нажмите BRING BACK"
+        update_dirty(stream)
+        return
+
     if not unpinned:
         stream.warning = None if pinned_sum == 100 else (
             f"Все активные офферы запинены, сумма весов {pinned_sum}% != 100%")

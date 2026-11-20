@@ -12,6 +12,7 @@ services:
     environment:
       KT_BASE_URL: http://mock-keitaro:8081
       KT_API_KEY: mock-key
+      DEMO_MODE: "true"
     ports:
       - "8000:8000"
     depends_on:

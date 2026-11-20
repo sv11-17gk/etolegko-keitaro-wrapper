@@ -63,3 +63,24 @@ def test_fetch_erases_local_unpushed_additions(db, kt, stream):
     # непушенного добавления больше нет: истина — KT
     assert 11112 not in _bindings(stream)
     assert not stream.dirty
+
+
+def test_fetch_empty_offer_stream_preserves_archive_and_bring_back(db, kt, stream):
+    from app.services import mutate
+    from app.services.push import push_stream
+
+    mutate.add_offer(db, kt, 564221, 11112)
+    mock_main.STREAMS[564221]["offers"] = []
+    fetch_campaign(db, kt, 93212)
+
+    assert stream.is_offer_stream
+    assert stream.published_offers == []
+    assert 11112 not in _bindings(stream)
+    assert all(b.state == REMOVED and b.share == 0 for b in stream.bindings)
+    assert not stream.dirty
+
+    mutate.bring_back_binding(db, _bindings(stream)[3749].id)
+    assert _bindings(stream)[3749].share == 100
+    push_stream(db, kt, 564221)
+    assert mock_main.STREAMS[564221]["offers"] == [
+        {"offer_id": 3749, "share": 100, "state": "active"}]

@@ -77,7 +77,9 @@ def fetch_campaign(db: Session, kt: KeitaroClient, kt_campaign_id: int) -> Campa
         stream.name = s.get("name") or ""
         stream.position = int(s.get("position") or 0)
         kt_offers = s.get("offers") or []
-        stream.is_offer_stream = bool(kt_offers)
+        # После удаления последнего оффера поток остаётся ротатором:
+        # архив и BRING BACK должны быть доступны и при пустом offers[].
+        stream.is_offer_stream = bool(kt_offers) or s.get("schema") in ("landings", "offers")
         stream.kt_meta = {
             "type": s.get("type"),
             "schema": s.get("schema"),

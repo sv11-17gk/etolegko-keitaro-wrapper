@@ -13,13 +13,14 @@ class Settings(BaseSettings):
     kt_admin_url: str = ""
 
     database_url: str = "sqlite:///./wrapper.db"
+    demo_mode: bool = False
 
     # Схемы и действия потоков. В OpenAPI Keitaro для них нет enum'ов, поэтому значения
     # вынесены в настройки: их нужно сверить с живым инстансом (README, раздел «Допущения»).
-    kt_redirect_schema: str = "action"      # Flow 1: редирект на Google
-    kt_redirect_action: str = "redirectToUrl"
-    kt_offers_schema: str = "offers"        # Flow 2: ротатор офферов
-    kt_offers_action: str = "showOffers"
+    kt_redirect_schema: str = "redirect"    # Flow 1: HTTP-редирект на Google
+    kt_redirect_action: str = "http"
+    kt_offers_schema: str = "landings"      # Flow 2: ротатор офферов
+    kt_offers_action: str = "http"
 
     # URL Google для Flow 1 и длина алиаса кампании (как wVqN1R в их примере).
     flow1_url: str = "https://google.com"

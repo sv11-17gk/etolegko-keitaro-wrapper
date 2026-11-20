@@ -46,7 +46,10 @@ class KeitaroClient:
     def _request(self, method: str, path: str, *, params: dict | None = None,
                  json: dict | None = None) -> dict | list:
         last_exc: Exception | None = None
-        for attempt in range(3):
+        # Создание не идемпотентно: потерянный ответ POST не означает, что
+        # объект не создан. Автоповтор мог бы оставить дубли кампаний/потоков.
+        attempts = 3 if method in ("GET", "PUT") else 1
+        for attempt in range(attempts):
             try:
                 resp = self._client.request(method, path, params=params, json=json)
             except httpx.TransportError as exc:
@@ -100,13 +103,13 @@ class KeitaroClient:
         return self._list("domains")
 
     def groups(self) -> list[dict]:
-        return self._list("groups")
+        return self._list("groups", params={"type": "campaigns"})
 
     def traffic_sources(self) -> list[dict]:
         return self._list("traffic_sources")
 
-    def _list(self, path: str) -> list[dict]:
-        data = self._request("GET", path)
+    def _list(self, path: str, *, params: dict | None = None) -> list[dict]:
+        data = self._request("GET", path, params=params)
         return data if isinstance(data, list) else data.get("items", [])
 
     # -- запись --------------------------------------------------------------------

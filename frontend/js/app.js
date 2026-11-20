@@ -65,6 +65,7 @@ async function loadCampaigns(preferredId) {
 function updateViewInKt() {
   const c = campaigns.find(x => x.kt_campaign_id === currentCampaignId);
   $("#viewInKt").href = c && c.admin_url ? c.admin_url : "#";
+  $("#viewInKt").classList.toggle("hidden", !c || !c.admin_url);
 }
 
 async function loadStreams() {

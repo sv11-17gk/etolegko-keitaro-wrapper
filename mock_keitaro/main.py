@@ -42,15 +42,15 @@ def _seed_streams():
     return {
         564220: {
             "id": 564220, "campaign_id": 93212, "type": "regular", "name": "Flow 1",
-            "position": 1, "state": "active", "schema": "action",
-            "action_type": "redirectToUrl", "action_payload": {"url": "https://google.com"},
+            "position": 1, "state": "active", "schema": "redirect",
+            "action_type": "http", "action_payload": "https://google.com",
             "filters": [{"id": 41, "name": "country", "mode": "accept", "payload": ["AU"]}],
             "offers": [],
         },
         564221: {
             "id": 564221, "campaign_id": 93212, "type": "default", "name": "Flow 2",
-            "position": 2, "state": "active", "schema": "offers",
-            "action_type": "showOffers", "action_payload": None,
+            "position": 2, "state": "active", "schema": "landings",
+            "action_type": "http", "action_payload": None,
             "filters": [],
             "offers": [
                 {"offer_id": 3749, "share": 33, "state": "active"},
@@ -159,7 +159,7 @@ async def create_stream(request: Request, api_key: str | None = Header(default=N
         "position": int(body.get("position") or 0),
         "state": "active",
         "schema": body.get("schema", "action"),
-        "action_type": body.get("action_type", "showOffers"),
+        "action_type": body.get("action_type", "http"),
         "action_payload": body.get("action_payload"),
         "filters": body.get("filters", []),
         "offers": [{"offer_id": int(o["offer_id"]), "share": int(o["share"]),
@@ -217,9 +217,9 @@ def domains(api_key: str | None = Header(default=None)):
 
 
 @app.get("/admin_api/v1/groups")
-def groups(api_key: str | None = Header(default=None)):
+def groups(type: str, api_key: str | None = Header(default=None)):
     _auth(api_key)
-    return GROUPS
+    return [g for g in GROUPS if g["type"] == type]
 
 
 @app.get("/admin_api/v1/traffic_sources")

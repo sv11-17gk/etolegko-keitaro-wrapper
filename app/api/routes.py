@@ -32,7 +32,8 @@ def _kt_admin_base() -> str:
     if settings.kt_admin_url:
         return settings.kt_admin_url.rstrip("/")
     parts = httpx.URL(settings.kt_base_url)
-    return f"{parts.scheme}://{parts.host}" + (f":{parts.port}" if parts.port else "")
+    origin = f"{parts.scheme}://{parts.host}" + (f":{parts.port}" if parts.port else "")
+    return f"{origin}/admin/#!"
 
 
 @router.get("/campaigns")
@@ -47,7 +48,8 @@ def list_campaigns(db: Session = Depends(get_db), kt: KeitaroClient = Depends(ge
             "alias": c.alias,
             "created_via_wrapper": c.created_via_wrapper,
             "dirty_count": dirty_count,
-            "admin_url": f"{_kt_admin_base()}/campaigns/{c.kt_campaign_id}",
+            "admin_url": (None if settings.demo_mode else
+                          f"{_kt_admin_base()}/campaign/{c.kt_campaign_id}/main"),
         })
     return out
 

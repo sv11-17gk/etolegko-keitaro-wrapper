@@ -92,7 +92,7 @@ def create_campaign(db: Session, kt: KeitaroClient, *, name: str, geos: list[str
         "type": "regular",
         "name": "Flow 1",
         "action_type": settings.kt_redirect_action,
-        "action_payload": {"url": settings.flow1_url},
+        "action_payload": settings.flow1_url,
         "filters": [{"name": "country", "mode": "accept", "payload": geo_codes}],
         "position": 1,
     }

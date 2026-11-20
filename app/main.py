@@ -20,17 +20,14 @@ log = logging.getLogger(__name__)
 
 
 def run_migrations() -> None:
-    try:
-        from alembic import command
-        from alembic.config import Config
+    from alembic import command
+    from alembic.config import Config
 
-        cfg = Config(str(ROOT / "alembic.ini"))
-        cfg.set_main_option("script_location", str(ROOT / "alembic"))
-        cfg.set_main_option("sqlalchemy.url", settings.database_url)
-        command.upgrade(cfg, "head")
-        log.info("Миграции применены")
-    except Exception:  # noqa: BLE001 — не роняем сервис из-за миграций, но пишем в лог
-        log.exception("Не удалось накатить миграции alembic")
+    cfg = Config(str(ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(ROOT / "alembic"))
+    cfg.set_main_option("sqlalchemy.url", settings.database_url)
+    command.upgrade(cfg, "head")
+    log.info("Миграции применены")
 
 
 @asynccontextmanager

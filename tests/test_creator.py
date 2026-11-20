@@ -22,10 +22,14 @@ def test_create_campaign_full(db, kt):
 
     assert flow1["filters"] == [{"name": "country", "mode": "accept",
                                  "payload": ["MX", "AU"]}]
-    assert flow1["action_payload"] == {"url": "https://google.com"}
+    assert flow1["schema"] == "redirect"
+    assert flow1["action_type"] == "http"
+    assert flow1["action_payload"] == "https://google.com"
     assert flow1["position"] == 1
     assert flow2["offers"] == [{"offer_id": 11111, "share": 100, "state": "active"}]
     assert flow2["type"] == "default"
+    assert flow2["schema"] == "landings"
+    assert flow2["action_type"] == "http"
     assert flow2["position"] == 2
 
     # состояние в локальной БД обёртки сразу согласовано с KT

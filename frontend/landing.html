@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Keitaro Wrapper — тестовое задание Adrobot</title>
+<title>ETOLEGKO — тестовое задание · Густав Карин</title>
+<meta name="description" content="Создание кампаний и редактор офферов Keitaro. Интерактивное демо, исходники и результаты проверки на настоящем трекере.">
+<meta name="robots" content="noindex, nofollow">
 <style>
 :root {
   --bg: #f4f6f9; --card: #fff; --ink: #1f2933; --muted: #6b7280;
@@ -28,7 +30,7 @@ body {
 .topnav { display: flex; flex-wrap: wrap; gap: 8px; }
 .topnav a {
   padding: 7px 13px; border-radius: 8px; text-decoration: none;
-  font-size: 13px; font-weight: 600; letter-spacing: .3px;
+  font-size: 14px; font-weight: 600; letter-spacing: .3px;
   color: var(--ink); border: 1px solid var(--line); background: var(--card);
 }
 .topnav a:hover { background: #f1f5fb; }
@@ -41,7 +43,7 @@ body {
 
 .badge {
   display: inline-block; margin-top: 6px; padding: 6px 12px; border-radius: 999px;
-  background: #fff8e1; border: 1px solid var(--dirty); font-size: 13.5px;
+  background: #fff8e1; border: 1px solid var(--dirty); font-size: 14px;
 }
 .badge b { color: #8a6100; }
 
@@ -92,26 +94,26 @@ footer a { color: var(--accent); text-decoration: none; }
 <body>
 
 <header class="topbar">
-  <div class="brand">Keitaro <b>Wrapper</b></div>
+  <div class="brand"><b>ETOLEGKO</b> · Густав Карин</div>
   <nav class="topnav">
     <a class="primary" href="/index.html">РЕДАКТОР</a>
-    <a href="/create.html">СОЗДАВАТОР</a>
+    <a href="/create.html">СОЗДАТЬ КАМПАНИЮ</a>
     <a href="/docs" target="_blank" rel="noopener">API (Swagger)</a>
-    <a id="gh-link" href="https://github.com/YOUR-USER/keitaro-wrapper" target="_blank" rel="noopener">GITHUB</a>
+    <a id="gh-link" href="https://github.com/sv11-17gk/etolegko-keitaro-wrapper" target="_blank" rel="noopener">GITHUB</a>
   </nav>
 </header>
 
 <main class="wrap">
 
   <div class="hero">
-    <h1>Обёртка над Keitaro: готовим правки локально, публикуем одной кнопкой</h1>
+    <h1>Создание кампаний и редактор офферов Keitaro</h1>
     <p>Локальная копия кампаний, потоков и офферов с весами. Изменения видны сразу
        (поток желтеет), в трекер уходят по <b>PUSH TO KT</b>, откат — <b>CANCEL</b>,
        синхронизация — <b>FETCH STREAMS FROM KT</b>.</p>
-    <p><b>Создаватор</b> за один шаг создаёт кампанию с двумя потоками: Flow 1 ловит
+    <p><b>Создатель кампаний</b> за один шаг создаёт кампанию с двумя потоками: Flow 1 ловит
        указанные гео и редиректит на Google, Flow 2 отдаёт трафик выбранному офферу.</p>
-    <span class="badge">Вы в demo-режиме: Keitaro замокан фикстурой их тестовой кампании
-      <b>«campaign 2»</b> (33/33/34), изменения живут в памяти контейнера</span>
+    <span class="badge">Демо на тестовых данных. Можно создавать кампании и менять офферы.
+      Изменения видны другим посетителям, тестовый трекер сбрасывается при перезапуске.</span>
   </div>
 
   <section class="block">
@@ -128,7 +130,7 @@ footer a { color: var(--accent); text-decoration: none; }
       <div class="card">
         <img src="/img/kt-create.png" alt="Создаватор кампаний">
         <div class="body">
-          <h2>Создаватор кампаний</h2>
+          <h2>Создатель кампаний</h2>
           <p>Name + Geo (коды через запятую) + оффер с поиском. Домен, группа и источник
              подставляются из Keitaro автоматически.</p>
           <a class="btn" href="/create.html">Создать кампанию</a>
@@ -139,7 +141,7 @@ footer a { color: var(--accent); text-decoration: none; }
       <figure><img src="/img/kt-editor.png" alt="Белый поток"><figcaption>белый: всё запушено</figcaption></figure>
       <figure><img src="/img/kt-dirty.png" alt="Жёлтый поток"><figcaption>жёлтый: 4 оффера по 25%</figcaption></figure>
       <figure><img src="/img/kt-removed.png" alt="Removed оффер"><figcaption>removed: 0%, BRING BACK</figcaption></figure>
-      <figure><img src="/img/kt-create.png" alt="Создаватор"><figcaption>создаватор</figcaption></figure>
+      <figure><img src="/img/kt-create.png" alt="Создание кампании"><figcaption>создание кампании</figcaption></figure>
     </div>
   </section>
 
@@ -150,34 +152,40 @@ footer a { color: var(--accent); text-decoration: none; }
       <li>Добавьте оффер (поиск по ID <b>11112</b> или названию) — поток желтеет, веса пересчитались в 4 × 25%.</li>
       <li><b>PUSH TO KT</b> — поток белеет; в mock-Keitaro можно проверить GET-ом или через FETCH.</li>
       <li><b>REMOVE</b> — оффер серый, 0%; <b>BRING BACK</b> — возвращается с перерасчётом.</li>
-      <li><b>PIN</b> — вес закрепляется и переживает любые операции; <b>CANCEL</b> — откат непушенных правок.</li>
-      <li>В <a href="/create.html">создаваторе</a> создайте кампанию (например, гео <b>MX, AU</b>, оффер <b>11111</b>) — в Keitaro появятся кампания, Flow 1 с фильтром стран и Flow 2 с оффером.</li>
+      <li><b>PIN</b> — вес активного оффера сохраняется при перераспределении; <b>CANCEL</b> — откат непушенных правок.</li>
+      <li>В <a href="/create.html">форме создания</a> задайте название, гео <b>MX, AU</b> и оффер <b>11111</b> — в тестовом трекере появятся кампания и два потока.</li>
     </ol>
   </section>
 
   <section class="block">
-    <h2>Внутри</h2>
+    <h2>Что проверено</h2>
+    <p>На настоящем Keitaro созданы две кампании с префиксом <b>test_karin_</b>.
+      Проверены фильтры стран, редирект на Google, создание из мобильной формы,
+      удаление последнего оффера, синхронизация, возврат и публикация с контрольным чтением.</p>
+    <p class="note">Выданный аккаунт видит один оффер и запрещает создавать новые.
+      Перераспределение между несколькими офферами проверено автоматическими тестами.
+      Подробности и ограничения записаны в README.</p>
     <div class="chips">
       <span class="chip">FastAPI</span><span class="chip">SQLAlchemy 2</span>
       <span class="chip">Alembic</span><span class="chip">httpx</span>
       <span class="chip">vanilla JS, без сборки</span><span class="chip">Docker Compose</span>
-      <span class="chip">24 теста pytest</span><span class="chip">E2E smoke по REST</span>
+      <span class="chip">29 тестов pytest</span><span class="chip">E2E smoke по REST</span>
       <span class="chip">mock-Keitaro Admin API</span>
     </div>
     <p class="note" style="margin-top:12px">Миграции накатываются при старте приложения
-      (alembic upgrade head); подключение к PostgreSQL включается сменой DATABASE_URL.
+      (alembic upgrade head); демо использует SQLite, для PostgreSQL нужен отдельный драйвер.
       Полный список решений и допущений по контрактам Keitaro — в README репозитория.</p>
     <div class="links" style="margin-top:12px">
       <a class="btn ghost" href="/docs" target="_blank" rel="noopener">Документация API (Swagger)</a>
-      <a class="btn ghost" id="gh-link-2" href="https://github.com/YOUR-USER/keitaro-wrapper" target="_blank" rel="noopener">Исходный код на GitHub</a>
+      <a class="btn ghost" id="gh-link-2" href="https://github.com/sv11-17gk/etolegko-keitaro-wrapper" target="_blank" rel="noopener">Исходный код и README</a>
     </div>
   </section>
 
 </main>
 
 <footer>
-  <span>Karin · тестовое задание Adrobot — обёртка над Keitaro (создаватор кампаний + редактор офферов)</span>
-  <span>demo: mock-Keitaro на <a href="/docs" target="_blank" rel="noopener">/docs</a> · GitHub — заменить ссылку перед деплоем</span>
+  <span>Густав Карин · тестовое задание ETOLEGKO · 20 ноября 2026</span>
+  <a href="/docs" target="_blank" rel="noopener">Документация API обёртки</a>
 </footer>
 
 </body>
