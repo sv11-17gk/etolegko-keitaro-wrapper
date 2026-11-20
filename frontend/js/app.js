@@ -66,18 +66,22 @@ function updateViewInKt() {
   const c = campaigns.find(x => x.kt_campaign_id === currentCampaignId);
   $("#viewInKt").href = c && c.admin_url ? c.admin_url : "#";
   $("#viewInKt").classList.toggle("hidden", !c || !c.admin_url);
+  $("#campaignName").textContent = c ? c.name : "Нет кампаний";
+  $("#demoNote").classList.toggle("hidden", !campaigns.length || campaigns.some(x => x.admin_url));
 }
 
 async function loadStreams() {
   const box = $("#streams");
   streamCards.clear();
-  box.innerHTML = "";
+  box.innerHTML = `<p class="empty">Загружаем потоки…</p>`;
   if (!currentCampaignId) {
     box.innerHTML = `<p class="empty">Кампаний в Keitaro пока нет — создайте первую.</p>`;
     return;
   }
   const streams = await api(`/api/campaigns/${currentCampaignId}/streams`);
+  box.innerHTML = "";
   for (const s of streams) box.appendChild(buildStreamCard(s));
+  if (!streams.length) box.innerHTML = `<p class="empty">В этой кампании пока нет потоков.</p>`;
 }
 
 async function refetchCampaignsAndStreams() {
@@ -93,15 +97,13 @@ function offerRowHtml(o) {
     : `<button class="btn small danger" data-act="remove" data-id="${o.binding_id}">REMOVE</button>`;
   const pinBtn = removed
     ? ``
-    : `<button class="btn small ghost" data-act="pin" data-id="${o.binding_id}"
-         data-pinned="${o.pinned ? "0" : "1"}">${o.pinned ? "UNPIN" : "PIN"}</button>`;
+    : `<button class="btn small pin-btn${o.pinned ? " pinned" : ""}" data-act="pin" data-id="${o.binding_id}"
+         title="${o.pinned ? "Открепить вес" : "Закрепить вес"}" aria-pressed="${o.pinned}" data-pinned="${o.pinned ? "0" : "1"}">${o.pinned ? "UNPIN" : "PIN"}</button>`;
   return `<tr class="${removed ? "removed" : ""}" data-binding="${o.binding_id}">
-    <td>${o.offer_id}</td>
-    <td class="name-cell">${esc(o.name)} ${removed ? `<span class="removed-tag">(removed)</span>` : ""}
-      ${o.pinned && !removed ? `<span class="muted" title="Вес закреплён">— pinned</span>` : ""}</td>
-    <td class="share">${o.share}%</td>
-    <td>${pinBtn}</td>
-    <td>${actionBtn}</td>
+    <td class="name-cell"><span class="offer-id">${o.offer_id}</span> ${esc(o.name)}
+      ${removed ? `<span class="removed-tag">(removed)</span>` : ""}</td>
+    <td class="share"><div class="share-control"><span>${o.share}%</span>${pinBtn}</div></td>
+    <td class="offer-actions">${actionBtn}</td>
   </tr>`;
 }
 
@@ -113,11 +115,11 @@ function streamBodyHtml(s) {
   return `
     ${s.warning ? `<div class="stream-warning">${esc(s.warning)}</div>` : ""}
     <div class="table-wrap"><table class="offers">
-      <thead><tr><th>ID</th><th>Offer</th><th>Share</th><th></th><th></th></tr></thead>
+      <thead><tr><th scope="col">Offer</th><th scope="col">Share</th><th scope="col" class="offer-actions">Actions</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
     <div class="add-row">
-      <input class="input add-input" placeholder="Offer ID или название — поиск по Keitaro" autocomplete="off">
+      <input class="input add-input" aria-label="Добавить оффер: ID или название" placeholder="Offer ID или название" autocomplete="off">
       <button class="btn small primary" data-act="add">ADD</button>
       <div class="suggest hidden"></div>
     </div>`;
@@ -139,18 +141,19 @@ function renderStreamInto(card, s) {
   const details = s.is_offer_stream
     ? `filter by ${esc(s.filter_summary)}, stream_id ${s.kt_stream_id}${clicks}`
     : `stream_id ${s.kt_stream_id}`;
-  const headActions = `
-    ${s.is_offer_stream ? `<button class="btn small" data-act="showall">SHOW ALL OFFERS</button>` : ""}
-    ${s.dirty && s.is_offer_stream ? `
+  const draftActions = s.dirty && s.is_offer_stream ? `
+    <div class="draft-actions">
       <button class="btn small primary" data-act="push">PUSH TO KT</button>
-      <button class="btn small" data-act="cancel">CANCEL</button>` : ""}`;
+      <button class="btn small" data-act="cancel">CANCEL</button>
+    </div>` : "";
   card.innerHTML = `
     <div class="stream-head">
       <div class="stream-title">Stream: ${esc(s.name)} (#${s.position})
         <span class="muted">${details}</span>
       </div>
-      <div class="stream-actions">${headActions}</div>
+      ${s.is_offer_stream ? `<button class="btn small" data-act="showall">SHOW ALL OFFERS</button>` : ""}
     </div>
+    ${draftActions}
     ${streamBodyHtml(s)}`;
   bindStreamEvents(card, s);
 }
@@ -312,4 +315,7 @@ $("#modalSearch").addEventListener("input", () => {
   modalTimer = setTimeout(modalSearch, 250);
 });
 
-loadCampaigns().then(loadStreams).catch(e => toast(e.message, true));
+loadCampaigns().then(loadStreams).catch(e => {
+  $("#streams").innerHTML = `<p class="empty error-text">Не удалось загрузить кампанию. Повторите FETCH STREAMS FROM KT или обновите страницу.</p>`;
+  toast(e.message, true);
+});

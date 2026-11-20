@@ -42,9 +42,9 @@ install_error_handlers(app)
 
 
 @app.get("/", include_in_schema=False)
-def landing():
-    """Обложка проекта: на демо-домене корень показывает лендинг, редактор на /index.html."""
-    return FileResponse(ROOT / "frontend" / "landing.html")
+def editor():
+    """Сразу открывает рабочий редактор кампаний."""
+    return FileResponse(ROOT / "frontend" / "index.html")
 
 
 app.mount("/", StaticFiles(directory=ROOT / "frontend", html=True), name="frontend")

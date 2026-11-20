@@ -5,6 +5,17 @@ from app.services.sync import fetch_campaign
 from app.services.weights import ACTIVE, REMOVED
 
 
+def test_campaign_list_excludes_stale_local_cache_without_deleting_it(db, kt):
+    from app.models import Campaign
+    from app.services.sync import sync_campaigns_list
+
+    stale = Campaign(kt_campaign_id=999999, name="removed in Keitaro", alias="old")
+    db.add(stale)
+    db.commit()
+    assert [c.kt_campaign_id for c in sync_campaigns_list(db, kt)] == [93212]
+    assert db.get(Campaign, 999999) is stale
+
+
 def _bindings(stream):
     return {b.kt_offer_id: b for b in stream.bindings}
 

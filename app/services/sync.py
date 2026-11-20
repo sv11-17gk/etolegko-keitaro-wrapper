@@ -39,7 +39,9 @@ def cache_offers(db: Session, kt: KeitaroClient, offer_ids: set[int]) -> None:
 
 def sync_campaigns_list(db: Session, kt: KeitaroClient) -> list[Campaign]:
     """Список кампаний KT: upsert в локальную таблицу, сохраняя created_via_wrapper."""
-    for c in kt.campaigns():
+    remote_campaigns = kt.campaigns()
+    visible_ids = [c["id"] for c in remote_campaigns]
+    for c in remote_campaigns:
         row = db.get(Campaign, c["id"])
         if row is None:
             row = Campaign(kt_campaign_id=c["id"])
@@ -47,7 +49,11 @@ def sync_campaigns_list(db: Session, kt: KeitaroClient) -> list[Campaign]:
         row.name = c.get("name") or ""
         row.alias = c.get("alias") or ""
     db.commit()
-    return list(db.scalars(select(Campaign).order_by(Campaign.kt_campaign_id)))
+    # Локальный кэш может пережить удаление кампании или сброс демо-трекера.
+    # Сохраняем его историю, но предлагаем только доступные сейчас кампании.
+    return list(db.scalars(select(Campaign).where(
+        Campaign.kt_campaign_id.in_(visible_ids)
+    ).order_by(Campaign.kt_campaign_id)))
 
 
 def fetch_campaign(db: Session, kt: KeitaroClient, kt_campaign_id: int) -> Campaign:
