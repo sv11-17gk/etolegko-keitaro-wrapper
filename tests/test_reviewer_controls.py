@@ -1,5 +1,6 @@
 """Управление трекером в демо независимо от рабочей копии обёртки."""
 import pytest
+import httpx
 from starlette.testclient import TestClient
 
 import mock_keitaro.main as mock_main
@@ -28,7 +29,8 @@ def test_catalog_returns_all_pages_without_a_search_term(api):
     last = api.get("/api/offers?limit=2&offset=4").json()
     assert first["has_more"] and second["has_more"] and not last["has_more"]
     ids = [o["offer_id"] for page in (first, second, last) for o in page["items"]]
-    assert len(set(ids)) == len(mock_main.OFFERS) == len(ids)
+    active_ids = {oid for oid, offer in mock_main.OFFERS.items() if offer["state"] == "active"}
+    assert set(ids) == active_ids and len(ids) == len(active_ids)
     assert api.get("/api/offers?limit=1000").status_code == 422
 
 
@@ -92,6 +94,42 @@ def test_real_preview_uses_the_upstream_preview_path(api, monkeypatch):
     preview = api.get("/api/offers/3749/preview", follow_redirects=False)
     assert preview.status_code == 307
     assert preview.headers["location"] == "https://keitaro.test/admin/preview/3749"
+
+
+@pytest.mark.parametrize("field", ["offer_url", "url", None])
+def test_preview_fallback(api, monkeypatch, field):
+    monkeypatch.setattr(settings, "demo_mode", False)
+    if field:
+        mock_main.OFFERS[3749][field] = "https://offers.example/preview"
+    result = api.get("/api/offers/3749/preview", follow_redirects=False)
+    assert result.status_code == (307 if field else 404)
+    if field:
+        assert result.headers["location"] == "https://offers.example/preview"
+
+
+def test_catalog_and_search_exclude_inactive_offers(api):
+    mock_main.OFFERS[11116] = {"id": 11116, "name": "Deleted demo offer", "status": "deleted"}
+    mock_main.OFFERS[11117] = {"id": 11117, "name": "Active demo offer", "status": "active"}
+    for offer_id in (11115, 11116):
+        assert api.get(f"/api/offers/search?q={offer_id}").json() == []
+    result = api.get("/api/offers/search?q=demo+offer").json()
+    assert [o["offer_id"] for o in result] == [11117]
+    assert {11115, 11116}.isdisjoint(o["offer_id"] for o in api.get("/api/offers").json()["items"])
+
+
+def test_tracker_unreachable_returns_a_readable_error(api):
+    from app.kt_client import KeitaroClient
+
+    def unavailable(request):
+        raise httpx.ConnectError("Unreachable", request=request)
+
+    with httpx.Client(base_url="https://keitaro.test/", transport=httpx.MockTransport(unavailable)) as http:
+        client = KeitaroClient("https://keitaro.test", "test-key", client=http)
+        app.dependency_overrides[get_kt] = lambda: client
+        result = api.get("/api/campaigns")
+    assert result.status_code == 502
+    assert "Keitaro недоступен" in result.json()["detail"]
+    assert "test-key" not in result.text
 
 
 @pytest.mark.parametrize("address", ["javascript:alert(1)", "//unexpected.test/preview"])

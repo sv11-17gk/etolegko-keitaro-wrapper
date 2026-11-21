@@ -7,10 +7,32 @@
 """
 import logging
 from datetime import date, timedelta
+from itertools import islice
 
 import httpx
 
 log = logging.getLogger(__name__)
+
+
+def _report_rows(data):
+    rows = data.get("rows") if isinstance(data, dict) else data
+    meta = data.get("meta") if isinstance(data, dict) else None
+    if isinstance(meta, dict):
+        names = list(meta)
+    else:
+        names = [column.get("name") or column.get("key") if isinstance(column, dict)
+                 else column for column in (meta or [])]
+    for row in rows or []:
+        if isinstance(row, dict):
+            yield row
+        elif isinstance(row, list) and names:
+            yield dict(zip(names, row))
+
+
+def _normalize_offer(offer: dict) -> dict:
+    state = offer.get("status") or offer.get("state") or ""
+    return {**offer, "state": str(state).strip().lower(),
+            "preview_path": offer.get("preview_path") or offer.get("offer_url") or offer.get("url")}
 
 
 class KtError(Exception):
@@ -70,7 +92,10 @@ class KeitaroClient:
                               resp.text[:500])
             if not resp.content:
                 return {}
-            return resp.json()
+            try:
+                return resp.json()
+            except ValueError as exc:
+                raise KtError(502, "Keitaro вернул ответ не в формате JSON") from exc
         raise KtError(503, f"Keitaro недоступен после ретраев: {path}", str(last_exc))
 
     # -- чтение --------------------------------------------------------------------
@@ -91,11 +116,31 @@ class KeitaroClient:
 
     def offers(self, offset: int = 0, limit: int = 500) -> list[dict]:
         data = self._request("GET", "offers", params={"offset": offset, "limit": limit})
-        return data if isinstance(data, list) else data.get("items", [])
+        items = data if isinstance(data, list) else data.get("items", [])
+        return [_normalize_offer(offer) for offer in items]
+
+    def active_offers(self, offset: int = 0, limit: int = 500) -> list[dict]:
+        """Apply offsets to active offers, even if upstream mixes lifecycle states."""
+        def active_items():
+            upstream_offset = 0
+            seen: set[int] = set()
+            while True:
+                batch = self.offers(offset=upstream_offset, limit=100)
+                # Some versions ignore pagination; do not loop over a repeated page.
+                new = [offer for offer in batch if offer["id"] not in seen]
+                if not new:
+                    return
+                for offer in new:
+                    seen.add(offer["id"])
+                    if offer["state"] == "active":
+                        yield offer
+                upstream_offset += len(batch)
+
+        return list(islice(active_items(), offset, offset + limit))
 
     def offer(self, offer_id: int) -> dict | None:
         try:
-            return self._request("GET", f"offers/{offer_id}")
+            return _normalize_offer(self._request("GET", f"offers/{offer_id}"))
         except KtError as exc:
             if exc.status == 404:
                 return None
@@ -140,28 +185,11 @@ class KeitaroClient:
         except KtError as exc:
             log.warning("report/build недоступен: %s", exc.message)
             return {}
-        rows = data.get("rows", []) if isinstance(data, dict) else (data or [])
-        meta = data.get("meta", []) if isinstance(data, dict) else []
-        names: list[str] = []
-        for m in meta or []:
-            if isinstance(m, dict):
-                names.append(str(m.get("name") or m.get("key") or ""))
-            elif isinstance(m, str):
-                names.append(m)
         out: dict[int, int] = {}
-        for r in rows or []:
-            if isinstance(r, dict):
-                sid, clicks = r.get("stream_id"), r.get("clicks")
-            elif isinstance(r, list) and names:
-                d = dict(zip(names, r))
-                sid, clicks = d.get("stream_id"), d.get("clicks")
-            else:
-                continue
-            if sid is None:
-                continue
+        for row in _report_rows(data):
             try:
-                out[int(sid)] = int(clicks or 0)
-            except (TypeError, ValueError):
+                out[int(row["stream_id"])] = int(row.get("clicks") or 0)
+            except (KeyError, TypeError, ValueError):
                 continue
         return out
 
@@ -181,16 +209,8 @@ class KeitaroClient:
         if self._demo_mode:
             payload.update(group_by=["offer_id"], stream_id=stream_id)
         data = self._request("POST", "report/build", json=payload)
-        rows = data.get("rows", []) if isinstance(data, dict) else data
-        meta = data.get("meta", []) if isinstance(data, dict) else []
-        names = [str(m.get("name") or m.get("key") or "") if isinstance(m, dict) else str(m)
-                 for m in meta or []]
         result: dict[int, dict] = {}
-        for row in rows or []:
-            if isinstance(row, list) and names:
-                row = dict(zip(names, row))
-            if not isinstance(row, dict):
-                continue
+        for row in _report_rows(data):
             try:
                 offer_id = int(row["offer_id"])
                 day = date.fromisoformat(str(row.get("date") or row.get("day"))[:10])

@@ -73,6 +73,8 @@ def _seed_campaigns():
 def reset_state() -> None:
     global OFFERS, STREAMS, CAMPAIGNS, CLICKS, OFFER_STATS, DOMAINS, GROUPS, SOURCES, _next_id
     OFFERS = _seed_offers()
+    # Insert before active offers so catalog checks cover pagination around it.
+    OFFERS = {11115: {"id": 11115, "name": "Paused demo offer", "state": "paused"}, **OFFERS}
     STREAMS = _seed_streams()
     CAMPAIGNS = _seed_campaigns()
     OFFER_STATS = {564221: {
@@ -147,6 +149,9 @@ async def update_stream(stream_id: int, request: Request,
     if s is None:
         raise HTTPException(status_code=404, detail="stream not found")
     body = await request.json()
+    for field in ("name", "type", "weight", "schema", "action_type", "action_payload", "filters"):
+        if field in body:
+            s[field] = body[field]
     if "offers" in body:
         # PUT частичный, но offers заменяются целиком
         s["offers"] = [{"offer_id": int(o["offer_id"]), "share": int(o["share"]),

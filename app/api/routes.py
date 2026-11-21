@@ -150,13 +150,13 @@ def search_offers(q: str = "", db: Session = Depends(get_db),
         return []
     if q.isdigit():
         offer = kt.offer(int(q))
-        if offer:
+        if offer and offer["state"] == "active":
             from app.services.sync import cache_offer
             cache_offer(db, offer)
             db.commit()
             return [_offer_dto(offer)]
     out = []
-    for offer in kt.offers(offset=0, limit=500):
+    for offer in kt.active_offers(limit=500):
         text = f"{offer.get('id')} {offer.get('name') or ''}".lower()
         if q.lower() in text:
             out.append(_offer_dto(offer))
@@ -168,7 +168,7 @@ def search_offers(q: str = "", db: Session = Depends(get_db),
 @router.get("/offers")
 def list_offers(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=100),
                 kt: KeitaroClient = Depends(get_kt)):
-    items = kt.offers(offset=offset, limit=limit + 1)
+    items = kt.active_offers(offset=offset, limit=limit + 1)
     return {"items": [_offer_dto(o) for o in items[:limit]],
             "offset": offset, "limit": limit, "has_more": len(items) > limit}
 

@@ -96,6 +96,15 @@ def test_mock_also_accepts_the_real_keitaro_report_contract(kt):
             "clicks_today": 12, "week": [6, 9, 7, 11, 10, 14, 12]}
 
 
+def test_array_report_uses_metadata_order_for_stream_totals():
+    def handler(request):
+        return httpx.Response(200, json={"meta": {"clicks": {}, "stream_id": {}},
+                                        "rows": [[12, 99], [None, 100]]})
+    with httpx.Client(base_url="https://keitaro.test/", transport=httpx.MockTransport(handler)) as http:
+        assert KeitaroClient("https://keitaro.test", "test", client=http).report_clicks_today() == {
+            99: 12, 100: 0}
+
+
 @pytest.mark.parametrize("array_rows", [False, True])
 @pytest.mark.parametrize("demo_mode", [False, True])
 def test_report_uses_one_request_and_fills_missing_dates(array_rows, demo_mode):

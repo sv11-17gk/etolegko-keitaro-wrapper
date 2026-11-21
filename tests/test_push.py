@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """PUSH TO KT: payload только из активных, блок при сумме != 100, KT — истина после push."""
+from copy import deepcopy
+
 import pytest
 
 import mock_keitaro.main as mock_main
@@ -54,3 +56,14 @@ def test_push_snapshot_matches_kt(db, kt, stream):
     for b in stream.bindings:
         assert b.added_unpushed is False
         assert b.share == kt_offers[b.kt_offer_id]
+
+
+def test_push_preserves_redirect_flow_and_offer_flow_settings(db, kt, stream):
+    redirect = deepcopy(kt.stream(564220))
+    before = kt.stream(564221)
+    mutate.add_offer(db, kt, 564221, 11112)
+    push_stream(db, kt, 564221)
+    assert kt.stream(564220) == redirect
+    after = kt.stream(564221)
+    assert after.pop("offers") != before.pop("offers")
+    assert after == before

@@ -103,6 +103,7 @@ def audit_put(client):
     offers = items(checked(client.get("offers", params={"limit": 5})))
     offer = next(o for o in offers if o.get("status", o.get("state")) == "active")
     name = name_for_check()
+    print("Disposable campaign:", name, flush=True)
     cid = None
     try:
         refs = {}
