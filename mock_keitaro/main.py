@@ -156,6 +156,9 @@ async def update_stream(stream_id: int, request: Request,
         # PUT частичный, но offers заменяются целиком
         s["offers"] = [{"offer_id": int(o["offer_id"]), "share": int(o["share"]),
                         "state": o.get("state", "active")} for o in body["offers"]]
+        if s.get("schema") == "landings" and s.get("action_payload") is None:
+            # Проверено на настоящем Keitaro: пустой payload после PUT становится строкой.
+            s["action_payload"] = ""
     return _stream_payload(s)
 
 

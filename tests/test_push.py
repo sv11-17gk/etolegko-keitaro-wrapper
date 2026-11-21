@@ -66,4 +66,6 @@ def test_push_preserves_redirect_flow_and_offer_flow_settings(db, kt, stream):
     assert kt.stream(564220) == redirect
     after = kt.stream(564221)
     assert after.pop("offers") != before.pop("offers")
+    assert before.pop("action_payload") is None
+    assert after.pop("action_payload") == ""
     assert after == before
